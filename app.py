@@ -547,7 +547,7 @@ def main_loop():
 main_loop()
 
 # Auto-refresh
-time.sleep(1)
+time.sleep(5)
 st.rerun()
 
 # Footer
