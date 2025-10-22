@@ -22,7 +22,6 @@ import streamlit as st
 import plotly.graph_objs as go
 from datetime import datetime, timedelta
 
-
 # CONFIG / ENV
 BINANCE_FUTURES_BASE = "https://fapi.binance.com"
 COINGLASS_API_KEY = os.getenv("COINGLASS_API_KEY")  # optional
@@ -286,8 +285,8 @@ if "last_update" not in st.session_state:
 def main_loop():
     current_time = time.time()
     
-    # Auto-refresh logic: update if refresh interval has passed or manual refresh was clicked
-    if manual_refresh or (current_time - st.session_state["last_update"] >= refresh):
+    # Check if it's time to refresh
+    if current_time - st.session_state["last_update"] >= refresh or manual_refresh:
         st.session_state["last_update"] = current_time
         
         try:
@@ -299,29 +298,51 @@ def main_loop():
                 results.append(res)
 
             df = pd.DataFrame(results)
-            # Show table
+            
+            # Show table - FIXED: Check if columns exist before displaying
             with placeholder.container():
                 st.markdown(f"### Top {len(df)} volatile pairs analysis (updated {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC)")
-                cols = ["symbol", "price", "atr", "atr_pct", "funding", "oi", "cvd", "signal", "rr", "reason", "ts"]
-                display_df = df[cols].copy()
-                display_df["price"] = display_df["price"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
-                display_df["atr"] = display_df["atr"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
-                display_df["atr_pct"] = display_df["atr_pct"].map(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else x)
-                display_df["funding"] = display_df["funding"].map(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
-                display_df["oi"] = display_df["oi"].map(lambda x: f"{x:.2f}" if pd.notnull(x) else x)
-                st.dataframe(display_df, height=420)
+                
+                # Define expected columns and check which ones exist
+                expected_cols = ["symbol", "price", "atr", "atr_pct", "funding", "oi", "cvd", "signal", "rr", "reason", "ts"]
+                available_cols = [col for col in expected_cols if col in df.columns]
+                
+                if available_cols:
+                    display_df = df[available_cols].copy()
+                    
+                    # Format numeric columns if they exist
+                    if "price" in display_df.columns:
+                        display_df["price"] = display_df["price"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
+                    if "atr" in display_df.columns:
+                        display_df["atr"] = display_df["atr"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
+                    if "atr_pct" in display_df.columns:
+                        display_df["atr_pct"] = display_df["atr_pct"].map(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else x)
+                    if "funding" in display_df.columns:
+                        display_df["funding"] = display_df["funding"].map(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
+                    if "oi" in display_df.columns:
+                        display_df["oi"] = display_df["oi"].map(lambda x: f"{x:.2f}" if pd.notnull(x) else x)
+                    
+                    st.dataframe(display_df, height=420)
+                else:
+                    st.warning("No data available to display")
 
                 # per-symbol expanders
                 for r in results:
+                    if not isinstance(r, dict):
+                        continue
+                        
                     sym = r.get("symbol")
-                    with st.expander(f"{sym} – {r.get('signal')} – price {r.get('price')}"):
-                        st.write("**Signal:**", r.get("signal"))
-                        st.write("**Reason:**", r.get("reason"))
-                        st.write("**Price:**", r.get("price"))
-                        st.write("**Funding Rate:**", r.get("funding"))
-                        st.write("**Open Interest:**", r.get("oi"))
-                        st.write("**CVD (approx):**", r.get("cvd"))
-                        st.write("**ATR:**", r.get("atr"), "(abs) |", r.get("atr_pct"))
+                    signal = r.get("signal", "N/A")
+                    price = r.get("price", "N/A")
+                    
+                    with st.expander(f"{sym} – {signal} – price {price}"):
+                        st.write("**Signal:**", signal)
+                        st.write("**Reason:**", r.get("reason", "N/A"))
+                        st.write("**Price:**", price)
+                        st.write("**Funding Rate:**", r.get("funding", "N/A"))
+                        st.write("**Open Interest:**", r.get("oi", "N/A"))
+                        st.write("**CVD (approx):**", r.get("cvd", "N/A"))
+                        st.write("**ATR:**", r.get("atr", "N/A"), "(abs) |", r.get("atr_pct", "N/A"))
                         if r.get("entry"):
                             st.write(f"Entry: {r.get('entry'):.6f}, TP: {r.get('tp'):.6f}, SL: {r.get('sl'):.6f}, RRR: {r.get('rr')}")
 
@@ -339,10 +360,13 @@ def main_loop():
 
             # Notifications: compare last_signals to current and send new
             for r in results:
+                if not isinstance(r, dict):
+                    continue
+                    
                 s = r.get("symbol")
                 sig = r.get("signal")
-                key = f"{s}:{sig}"
                 last = st.session_state["last_signals"].get(s)
+                
                 # send when a new actionable signal (SCALP LONG/SHORT) appears or changes
                 if sig in ["SCALP LONG", "SCALP SHORT"]:
                     if last != sig:
@@ -359,13 +383,13 @@ def main_loop():
 
         except Exception as e:
             st.error("Error fetching data: " + str(e))
-    
-    # Schedule next rerun for auto-refresh
-    time.sleep(1)
-    st.rerun()
 
 # Run main loop
 main_loop()
+
+# Auto-refresh menggunakan st.rerun()
+time.sleep(1)  # Small delay to prevent too rapid refreshes
+st.rerun()
 
 st.markdown("---")
 st.caption("Notes: This is a starter dashboard. Tune thresholds, add Coinglass endpoints, and backtest rules before live trading. Use testnet and small sizes.")
