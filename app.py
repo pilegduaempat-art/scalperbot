@@ -397,35 +397,55 @@ def main_loop():
                 st.markdown(f"### 📈 Top {len(df)} volatile pairs analysis")
                 st.caption(f"Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
                 
-                # Prepare display dataframe
-                cols = ["symbol", "price", "atr", "atr_pct", "funding", "oi", "cvd", "signal", "rr", "reason", "ts"]
-                display_df = df[cols].copy()
-                display_df["price"] = display_df["price"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
-                display_df["atr"] = display_df["atr"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
-                display_df["atr_pct"] = display_df["atr_pct"].map(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else x)
-                display_df["funding"] = display_df["funding"].map(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
-                display_df["oi"] = display_df["oi"].map(lambda x: f"{x:.2f}" if pd.notnull(x) else x)
+                # Prepare display dataframe - FIXED: Check if columns exist before selecting
+                available_cols = []
+                expected_cols = ["symbol", "price", "atr", "atr_pct", "funding", "oi", "cvd", "signal", "rr", "reason", "ts"]
                 
-                # Color-code signals
-                def highlight_signal(row):
-                    if row['signal'] == 'SCALP LONG':
-                        return ['background-color: #d4edda'] * len(row)
-                    elif row['signal'] == 'SCALP SHORT':
-                        return ['background-color: #f8d7da'] * len(row)
-                    else:
-                        return [''] * len(row)
+                for col in expected_cols:
+                    if col in df.columns:
+                        available_cols.append(col)
                 
-                st.dataframe(
-                    display_df.style.apply(highlight_signal, axis=1),
-                    height=420,
-                    use_container_width=True
-                )
-
+                # Create display dataframe with available columns only
+                if available_cols:
+                    display_df = df[available_cols].copy()
+                    
+                    # Format numeric columns if they exist
+                    if "price" in display_df.columns:
+                        display_df["price"] = display_df["price"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
+                    if "atr" in display_df.columns:
+                        display_df["atr"] = display_df["atr"].map(lambda x: round(x, 6) if pd.notnull(x) else x)
+                    if "atr_pct" in display_df.columns:
+                        display_df["atr_pct"] = display_df["atr_pct"].map(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else x)
+                    if "funding" in display_df.columns:
+                        display_df["funding"] = display_df["funding"].map(lambda x: f"{x:.6f}" if pd.notnull(x) else x)
+                    if "oi" in display_df.columns:
+                        display_df["oi"] = display_df["oi"].map(lambda x: f"{x:.2f}" if pd.notnull(x) else x)
+                    
+                    # Color-code signals
+                    def highlight_signal(row):
+                        if 'signal' in row and row['signal'] == 'SCALP LONG':
+                            return ['background-color: #d4edda'] * len(row)
+                        elif 'signal' in row and row['signal'] == 'SCALP SHORT':
+                            return ['background-color: #f8d7da'] * len(row)
+                        else:
+                            return [''] * len(row)
+                    
+                    st.dataframe(
+                        display_df.style.apply(highlight_signal, axis=1),
+                        height=420,
+                        use_container_width=True
+                    )
+                else:
+                    st.warning("No data available to display")
+                
                 # Per-symbol expanders with charts
                 st.markdown("---")
                 st.subheader("📊 Detailed Analysis")
                 
                 for r in results:
+                    if not isinstance(r, dict):
+                        continue
+                        
                     sym = r.get("symbol")
                     sig = r.get("signal")
                     price = r.get("price")
@@ -485,6 +505,9 @@ def main_loop():
             # Telegram Notifications
             if notify and tg_bot_token and tg_chat_id:
                 for r in results:
+                    if not isinstance(r, dict):
+                        continue
+                        
                     s = r.get("symbol")
                     sig = r.get("signal")
                     last = st.session_state["last_signals"].get(s)
