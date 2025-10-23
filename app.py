@@ -12,12 +12,12 @@ Hitung berapa tambahan margin (USDT) yang dibutuhkan agar **average entry** turu
 # Input data utama
 col1, col2 = st.columns(2)
 with col1:
-    entry_price = st.number_input("🎯 Entry Awal (USDT)", value=0.551, step=0.001, format="%.3f")
+    entry_price = st.number_input("🎯 Entry Awal (USDT)", value=0.551, step=0.001, format="%.6f")
     entry_qty = st.number_input("📦 Jumlah Awal (coin)", value=213.0, step=1.0)
     leverage = st.number_input("⚡ Leverage", value=20, step=1)
 with col2:
-    current_price = st.number_input("💰 Harga Sekarang (USDT)", value=0.336, step=0.001, format="%.3f")
-    target_entry = st.number_input("🎯 Target Entry (USDT)", value=0.338, step=0.001, format="%.3f")
+    current_price = st.number_input("💰 Harga Sekarang (USDT)", value=0.336, step=0.001, format="%.6f")
+    target_entry = st.number_input("🎯 Target Entry (USDT)", value=0.338, step=0.001, format="%.6f")
 
 # Kalkulasi
 try:
@@ -32,10 +32,10 @@ try:
 
     # Output hasil
     st.subheader("📊 Hasil Perhitungan")
-    st.write(f"**Tambahan Quantity:** {add_qty:,.2f} coin")
-    st.write(f"**Nilai Posisi Tambahan:** ${add_position_value:,.2f}")
-    st.write(f"**Margin Tambahan (Leverage {leverage}x):** ${add_margin:,.2f}")
-    st.write(f"**Harga Entry Baru (Simulasi):** {new_avg_entry:.4f} USDT")
+    st.write(f"**Tambahan Quantity:** {add_qty:,.6f} coin")
+    st.write(f"**Nilai Posisi Tambahan:** ${add_position_value:,.6f}")
+    st.write(f"**Margin Tambahan (Leverage {leverage}x):** ${add_margin:,.6f}")
+    st.write(f"**Harga Entry Baru (Simulasi):** {new_avg_entry:.6f} USDT")
 
     # Visualisasi Chart
     st.subheader("📈 Simulasi Harga Recovery")
