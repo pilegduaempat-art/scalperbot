@@ -2,17 +2,19 @@ import requests
 import streamlit as st
 
 def get_futures_price(symbol: str):
-    """Fallback ke Binance Spot API jika Futures diblokir"""
     try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}"
-        response = requests.get(url, timeout=5)
+        proxy_url = f"https://your-proxy-domain.com/futures_price?symbol={symbol.upper()}"
+        response = requests.get(proxy_url, timeout=5)
         data = response.json()
         if "price" in data:
             return float(data["price"])
+        elif "msg" in data:
+            st.error(f"Binance error: {data['msg']}")
         else:
-            st.error(f"Fallback gagal: {data}")
+            st.error(f"Respons tak dikenal: {data}")
         return None
     except Exception as e:
-        st.error(f"Gagal mengambil harga (fallback): {e}")
+        st.error(f"Gagal menghubungi proxy: {e}")
         return None
+
 
