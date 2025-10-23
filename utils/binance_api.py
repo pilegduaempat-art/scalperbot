@@ -2,24 +2,17 @@ import requests
 import streamlit as st
 
 def get_futures_price(symbol: str):
-    """Mengambil harga realtime dari Binance Futures API"""
+    """Fallback ke Binance Spot API jika Futures diblokir"""
     try:
-        url = f"https://fapi.binance.com/fapi/v1/ticker/price?symbol={symbol.upper()}"
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol.upper()}"
         response = requests.get(url, timeout=5)
         data = response.json()
-
-        # --- Validasi respon Binance ---
         if "price" in data:
             return float(data["price"])
-        elif "msg" in data:
-            st.error(f"Binance error: {data['msg']}")
         else:
-            st.error(f"Respons tak dikenal dari Binance: {data}")
+            st.error(f"Fallback gagal: {data}")
+        return None
+    except Exception as e:
+        st.error(f"Gagal mengambil harga (fallback): {e}")
         return None
 
-    except requests.exceptions.RequestException as e:
-        st.error(f"Gagal menghubungi Binance: {e}")
-        return None
-    except ValueError:
-        st.error("Gagal memproses data harga dari Binance.")
-        return None
